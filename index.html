@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Inscription Régate</title>
+
+  <!-- Roboto + Material Icons recommandés pour Vuetify -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700,900" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Icons" rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/scripts/verify.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css" rel="stylesheet">
+
+  <!-- Vuetify CSS (via CDN) -->
+  <link href="https://cdn.jsdelivr.net/npm/vuetify@3.10.5/dist/vuetify.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f5f7fa;
+    }
+
+    #app {
+      max-width: 980px;
+      margin: 24px auto;
+      padding: 16px;
+    }
+
+    .logo {
+      height: 64px;
+      object-fit: contain;
+    }
+
+    .terms {
+      white-space: pre-wrap;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <v-app>
+      <v-main>
+        <v-container >
+
+          <!-- Header -->
+          <v-row class="align-center mb-6">
+            <v-col class="align-center">
+              <h1 class="mb-1">{{ regatta.name || 'Régate' }}</h1>
+              <div v-if="regatta.date"><h2>Date : {{ formattedRegattaDate }}</h2></div>
+              <div v-else>Chargement de la date...</div>
+            </v-col>
+          </v-row>
+
+          <v-form ref="form" v-model="valid" lazy-validation>
+
+            <!-- Section Bateau -->
+            <v-card class="pa-4 mb-4">
+              <v-card-title>Bateau</v-card-title>
+              <v-card-text>
+                <v-row class="mb-3">
+                  <v-col cols="12" md="6">
+                    <v-select v-model="selectedBoatName" :items="savedBoats" item-title="name" item-value="name"
+                      label="Sélectionner un bateau" />
+                  </v-col>
+                </v-row>
+
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field v-model="boat.name" label="Nom du Bateau" :rules="[rules.required]" required />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field v-model="boat.type" label="Type du Bateau" :rules="[rules.required]" required />
+                  </v-col>
+
+                  <v-col cols="12" md="4">
+                    <v-text-field v-model="boat.sailNumber" label="Numéro de voile" :rules="[rules.required]"
+                      required />
+                  </v-col>
+                  <v-col cols="12" md="4">
+                    <v-text-field v-model="boat.class" label="Classe du Bateau" :rules="[rules.required]" required />
+                  </v-col>
+                  <v-col cols="12" md="2">
+                    <v-text-field v-model="boat.groupBrut" label="Groupe Brut" :rules="[rules.required]" required />
+                  </v-col>
+                  <v-col cols="12" md="2">
+                    <v-text-field v-model="boat.groupNet" label="Groupe Net" :rules="[rules.required]" required />
+                  </v-col>
+                </v-row>
+
+                <v-row>
+                  <v-col cols="12">
+                    <v-checkbox v-model="saveBoat" label="Je souhaite enregistrer les informations de mon bateau" />
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <!-- Section Equipage -->
+            <v-card class="pa-4 mb-4">
+              <v-card-title>Equipage</v-card-title>
+              <v-card-text>
+                <v-alert type="info" class="mb-4" variant="outlined">Tu peux piocher des équipiers pré-enregistrés ou le chercher à partir d'un numéro de licence. Tu peux également rentrer les informations manuellement en cas de licence temporaire. Pour choisir le skipper, clique sur l'étoile à côté</v-alert>
+                
+
+                <v-row class="mb-3">
+                  <v-col cols="10" md="6">
+                    <v-select :items="crewCandidates" item-title="display" item-value="licence"
+                      v-model="selectedCrewLicence" label="Choisir un équipier depuis la liste prédéfinie" clearable
+                      :loading="loadingCrewCandidates" />
+                  </v-col>
+                  <v-col cols="2" md="6">
+                    <v-btn @click="addSelectedCrewCandidate" icon="mdi-account-plus"></v-btn>
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="10" md="6" class="d-flex align-center">
+                    <v-text-field label="Entrer numéro de licence" v-model="searchedLicence" :error="searchLicenceError"
+                      :error-messages="searchLicenceError ? 'Licence incorrecte' : ''"
+                      @input="searchLicenceError = false" />
+                  </v-col>
+                  <v-col cols="2" md="6">
+                    <v-btn @click="searchAndAddLicenceCrewCandidate" icon="mdi-account-plus"
+                      :loading="loadingLicence"></v-btn>
+                  </v-col>
+                </v-row>
+
+                <h4>Licence temporaire</h4>
+                <v-row class="mt-4">
+                  <v-col cols="12" md="3">
+                    <v-text-field v-model="newCrew.firstname" label="Prénom" />
+                  </v-col>
+                  <v-col cols="12" md="3">
+                    <v-text-field v-model="newCrew.lastname" label="Nom" />
+                  </v-col>
+                  <v-col cols="12" md="4">
+                    <v-text-field v-model="newCrew.licence" label="N° de licence temporaire" />
+                  </v-col>
+                  <v-col cols="12" md="2">
+                    <v-btn @click="addCrewManual" icon="mdi-account-plus"></v-btn>
+                  </v-col>
+                </v-row>
+                <v-divider :thickness="5"></v-divider>
+                <h2 class="ma-4">Liste d'équipage</h2>
+                <v-row>
+                  <v-col cols="12">
+                    <v-row v-for="(user,index) in crew" :key="user.licence">
+                      <v-col cols="8">
+                        <v-card color="indigo-darken-3" :variant="user.skipper?'flat':'tonal'">
+                          <v-card-title>{{user.lastname}} {{user.firstname}} ({{user.licence}})</v-card-title>
+                        </v-card>
+                      </v-col>
+                      <v-col cols="2">
+                        <v-btn v-if="!user.skipper" small text @click="assignSkipper(index)" icon="mdi-star"></v-btn>
+                      </v-col>
+                      <v-col cols="2">
+                        <v-btn small text @click="removeCrew(index)" icon="mdi-delete"></v-btn>
+                      </v-col>
+                    </v-row>
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <!-- Section Skipper -->
+            <v-card class="pa-4 mb-4">
+              <v-card-title>Coordonnées</v-card-title>
+              <v-card-text>
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field v-model="skipper.address" label="Adresse postale" :rules="[rules.required]"
+                      required />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field v-model="skipper.email" label="Email" :rules="[rules.required, rules.email]"
+                      required />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field v-model="skipper.phone" label="Numéro de téléphone" :rules="[rules.required]"
+                      required />
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+
+
+            <!-- Conditions -->
+            <v-card class="pa-4 mb-4">
+              <v-card-title>Conditions d'inscription (obligatoire)</v-card-title>
+              <v-card-text>
+                <div class="terms mb-4">
+                  Je soussigné {{ skipperName || '...' }}, skipper, certifie exactes les
+                  informations données ci-dessus. En m’inscrivant à cette épreuve, je reconnais qu’il m’appartient sous
+                  ma seule responsabilité, de décider de prendre le départ ou continuer à courir, notamment en
+                  m’assurant que les conditions météorologiques du moment et les prévisions pour la durée de l’épreuve
+                  sont compatibles, en matière de sécurité des personnes, à la taille, l’état du voilier et à la
+                  compétence de l’équipage.
+                  J’accepte de me soumettre :
+                  • aux Règles de Courses à la Voile de l’ISAF 2017-2019 et leurs annexes,
+                  • aux prescriptions de la FFV
+                  • aux règlements de Course Croisière au Handicap National de l’année en cours,
+                  • aux Instructions de cette Course et ses Annexes, dont j’ai pris connaissance.
+                  Je renonce à tout recours autre que celui prévu par ces règles.
+                </div>
+
+                <v-checkbox v-model="acceptedRules" :rules="[rules.mustBeTrue]"
+                  label="J'accepte les conditions d'inscriptions énoncées ci-dessus. *" required />
+
+              </v-card-text>
+            </v-card>
+
+            <!-- Actions -->
+            <v-row>
+              <v-col cols="12" class="d-flex justify-space-between align-center">
+                <div>
+                  <v-alert v-if="submitMessage" type="success" border="left" prominent>
+                    {{ submitMessage }}
+                  </v-alert>
+                  <v-alert v-if="errorMessage" type="error" border="left" prominent>
+                    {{ errorMessage }}
+                  </v-alert>
+                </div>
+
+                <div>
+                  <v-btn color="primary" :loading="submitting" @click="onSubmit">Valider</v-btn>
+                </div>
+              </v-col>
+            </v-row>
+
+          </v-form>
+
+        </v-container>
+      </v-main>
+    </v-app>
+  </div>
+
+  <!-- Vue 3 (CDN) -->
+  <script src="https://unpkg.com/vue@3.5.22/dist/vue.global.prod.js"></script>
+
+  <!-- Vuetify (CDN JS) -->
+  <script src="https://cdn.jsdelivr.net/npm/vuetify@3.10.5/dist/vuetify.min.js"></script>
+
+  <script>
+    const { createApp, ref, reactive, computed, onMounted, watch } = Vue;
+    const { createVuetify } = Vuetify;
+
+    createApp({
+      setup() {
+        // --- CONFIG: adapter les URLs d'API et le logo
+        const API = {
+          regatta: 'https://sheets.googleapis.com/v4/spreadsheets/1gYi0jgk_VNLhUyyx72VlQ1WPORnkJ2ssZod5vspz26g/values/Regate?key=AIzaSyCTXA6Nrbyd1Sil8V_1KxSwbijKIpTJogU',                 // GET -> { name, date }
+          savedBoats: 'https://sheets.googleapis.com/v4/spreadsheets/1gYi0jgk_VNLhUyyx72VlQ1WPORnkJ2ssZod5vspz26g/values/Bateaux Prédéfinis?key=AIzaSyCTXA6Nrbyd1Sil8V_1KxSwbijKIpTJogU',          // GET -> [{ id, name, type, sailNumber, class, groupBrut, groupNet }]
+          crewCandidates: 'https://sheets.googleapis.com/v4/spreadsheets/1gYi0jgk_VNLhUyyx72VlQ1WPORnkJ2ssZod5vspz26g/values/Equipiers Prédéfinis?key=AIzaSyCTXA6Nrbyd1Sil8V_1KxSwbijKIpTJogU',        // GET -> [{ id, firstname, lastname, licence }]
+          crewBylicence: (lic) => `/api/crew/licence/${lic}`, // GET -> { firstname, lastname, licence }
+          verifylicence: (lic) => `https://script.google.com/macros/s/AKfycbxmYn_YGOed31LrGD7QxysI8-N29np04EjKidumbJ0DMVUUsB8YUjfYKZTTCkefxuZN/exec?licence=${lic}`,  // GET -> { valid: true/false }
+          register: 'https://us-central1-proxy-appscript.cloudfunctions.net/proxyToAppsScript'                // POST -> 201 on success
+        };
+
+        const logoUrl = 'https://raw.githubusercontent.com/TON/REPO/master/logo.png'; // <-- TODO: remplacer par ton chemin GitHub
+
+        // state
+        const regatta = reactive({ name: '', date: null });
+        const boat = reactive({ name: '', type: '', sailNumber: '', class: '', groupBrut: '', groupNet: '' });
+        const saveBoat = ref(false);
+
+        const skipper = reactive({ address: '', email: '', phone: '' });
+
+        const crew = ref([]); // lista d'objets {firstname, lastname, licence }
+        const newCrew = reactive({ firstname: '', lastname: '', licence: '' });
+
+        const crewCandidates = ref([]);
+        const selectedCrewLicence = ref('');
+        const loadingCrewCandidates = ref(false);
+        const savedBoats = ref([]);
+        const loadingSavedBoats = ref(false);
+        const selectedBoatName = ref('');
+        const searchedLicence = ref('');
+        const selectedBoat = computed(() => savedBoats.value.find(o => o.name === selectedBoatName.value) || {});
+        const loadingLicence = ref(false);
+        const searchLicenceError = ref(false);
+        const skipperName = computed(() => {
+          const skipper = crew.value.find(c => c.skipper == true);
+          let skipperResult;
+          if (skipper) {
+            skipperResult = `${skipper.firstname} ${skipper.lastname}`;
+          } else {
+            skipperResult = '';
+          }
+          return skipperResult
+        }
+        )
+
+
+        const licenceLookup = ref('');
+
+        // form control
+        const valid = ref(false);
+        const submitting = ref(false);
+        const submitMessage = ref('');
+        const errorMessage = ref('');
+        const acceptedRules = ref(false);
+
+        const rules = {
+          required: v => !!v || 'Champ requis',
+          email: v => /.+@.+\..+/.test(v) || 'Email invalide',
+          mustBeTrue: v => v === true || 'Vous devez accepter les conditions'
+        };
+
+        // formatted date
+        const formattedRegattaDate = computed(() => {
+          if (!regatta.date) return '';
+          const d = new Date(regatta.date);
+          return d.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+        });
+
+        // fetch regatta
+        async function fetchRegatta() {
+          try {
+            const res = await fetch(API.regatta);
+            if (!res.ok) throw new Error('Impossible de charger la régate');
+            const data = await res.json();
+            regatta.name = data.values[1][1] || 'Régate';
+            regatta.date = data.values[2][1] || null;
+          } catch (e) {
+            console.warn('fetchRegatta', e);
+            regatta.name = 'Régate (info non disponible)';
+            regatta.date = null;
+          }
+        }
+
+        // saved boats
+        async function fetchSavedBoats() {
+          loadingSavedBoats.value = true;
+          try {
+            const res = await fetch(API.savedBoats);
+            if (res.ok) {
+              const arr = await res.json();
+              resp_boats = arr.values;
+              resp_boats.shift();
+              savedBoats.value = resp_boats.map(b => ({
+                name: b[0],
+                type: b[1],
+                sailNumber: b[2],
+                class: b[3],
+                groupBrut: b[4],
+                groupNet: b[5],
+              }));
+            } else {
+              savedBoats.value = [];
+            }
+          } catch (e) {
+            console.warn('fetchSavedBoats', e);
+            savedBoats.value = [];
+          } finally { loadingSavedBoats.value = false; }
+        }
+
+        watch(selectedBoatName, (newName) => {
+          const b = savedBoats.value.find(o => o.name === newName);
+          if (b) Object.assign(boat, b);
+        });
+
+
+        function addSelectedCrewCandidate() {
+          if (selectedCrewLicence.value) {
+            const foundCrew = crewCandidates.value.find(c => c.licence == selectedCrewLicence.value);
+            addCrew(foundCrew);
+          }
+        }
+
+        async function searchAndAddLicenceCrewCandidate() {
+          loadingLicence.value = true;
+          const res = await fetch(API.verifylicence(searchedLicence.value));
+          const infos = await res.json();
+          if (infos.ErrorNo == "0") {
+            addCrew({ firstname: infos.Prenom, lastname: infos.Nom, licence: infos.NoLicence });
+            searchedLicence.value = "";
+          } else {
+            searchLicenceError.value = true;
+          }
+          loadingLicence.value = false;
+        }
+
+        function addCrew(member) {
+          let skipper = false;
+          if (crew.value.length == 0) {
+            skipper = true;
+          }
+          crew.value.push({ firstname: member.firstname, lastname: member.lastname, licence: member.licence, skipper: skipper });
+        }
+
+        function assignSkipper(index) {
+          crew.value.forEach((user, id) => {
+            if (id == index) {
+              user.skipper = true;
+            } else {
+              user.skipper = false;
+            }
+          })
+        }
+
+        // crew candidates
+        async function fetchCrewCandidates() {
+          loadingCrewCandidates.value = true;
+          try {
+            const res = await fetch(API.crewCandidates);
+            if (res.ok) {
+              const arr = await res.json();
+              resp_crew = arr.values;
+              resp_crew.shift();
+              crewCandidates.value = resp_crew.map(b => ({
+                lastname: b[0],
+                firstname: b[1],
+                licence: b[2],
+                display: `${b[0]} ${b[1]} (Licence: ${b[2]})`,
+              }));
+            } else {
+              crewCandidates.value = [];
+            }
+          } catch (e) {
+            console.warn('fetchCrewCandidates', e);
+            crewCandidates.value = [];
+          } finally { loadingCrewCandidates.value = false; }
+        }
+
+        // lookup licence by number -> fetch name/prénom and verify
+        async function lookuplicence() {
+          const lic = licenceLookup.value && licenceLookup.value.trim();
+          if (!lic) { errorMessage.value = 'Entrez un numéro de licence.'; setTimeout(() => errorMessage.value = '', 4000); return; }
+          try {
+            const res = await fetch(API.crewBylicence(encodeURIComponent(lic)));
+            if (res.ok) {
+              const data = await res.json();
+              await verifylicenceAndAdd({ firstname: data.firstname, lastname: data.lastname, licence: data.licence || lic });
+              licenceLookup.value = '';
+            } else if (res.status === 404) {
+              errorMessage.value = 'Licence non trouvée.';
+              setTimeout(() => errorMessage.value = '', 4000);
+            } else {
+              errorMessage.value = 'Erreur lors de la recherche de la licence.';
+              setTimeout(() => errorMessage.value = '', 4000);
+            }
+          } catch (e) {
+            console.warn('lookuplicence', e);
+            errorMessage.value = 'Erreur réseau.';
+            setTimeout(() => errorMessage.value = '', 4000);
+          }
+        }
+
+        // verify licence then add to crew
+        async function licenceAndAdd(person) {
+          // person: { firstname, lastname, licence }
+          try {
+            const vres = await fetch(API.verifylicence(person.licence));
+            if (vres.ok) {
+              const vdata = await vres.json();
+              if (vdata.valid) {
+                // add to crew
+                crew.value.push({ id, firstname: person.firstname, lastname: person.lastname, licence: person.licence });
+                submitMessage.value = '';
+              } else {
+                errorMessage.value = 'Licence invalide.';
+                setTimeout(() => errorMessage.value = '', 4000);
+              }
+            } else {
+              // fallback: still add but mark unverified? For safety, block add
+              errorMessage.value = 'Impossible de vérifier la licence.';
+              setTimeout(() => errorMessage.value = '', 4000);
+            }
+          } catch (e) {
+            console.warn('verifylicenceAndAdd', e);
+            errorMessage.value = 'Erreur réseau lors de la vérification.';
+            setTimeout(() => errorMessage.value = '', 4000);
+          }
+        }
+
+        function addCrewManual() {
+          addCrew({ firstname: newCrew.firstname, lastname: newCrew.lastname, licence: newCrew.licence })
+          newCrew.firstname = ''; newCrew.lastname = ''; newCrew.licence = '';
+        }
+
+        function removeCrew(index) {
+          crew.value.splice(index, 1);
+          if (crew.value.length > 0) {
+            const isSkipper = crew.value.find(s => s.skipper == true);
+            if (!isSkipper) {
+              crew.value[0].skipper = true
+            }
+          }
+        }
+
+        async function onSubmit() {
+          submitMessage.value = '';
+          errorMessage.value = '';
+
+          // Validate required boat fields
+          const requiredBoatFields = [boat.name, boat.type, boat.sailNumber, boat.class, boat.groupBrut, boat.groupNet];
+          if (requiredBoatFields.some(v => !v)) { errorMessage.value = 'Veuillez remplir toutes les infos du bateau.'; return; }
+
+          // skipper fields
+          if (!skipper.address || !skipper.email || !skipper.phone) { errorMessage.value = 'Veuillez remplir toutes les infos du skipper.'; return; }
+
+          // at least one crew (including skipper) should be present
+          if (crew.value.length === 0) { errorMessage.value = 'Veuillez ajouter au moins un équipier.'; return; }
+
+
+          if (!acceptedRules.value) { errorMessage.value = 'Vous devez accepter les conditions.'; return; }
+
+          // prepare payload
+          const payload = {
+            boat: boat,
+            crew: crew.value.map(c => ({ firstname: c.firstname, lastname: c.lastname, licence: c.licence, skipper: c.skipper })),
+            contact: {
+              address: skipper.address,
+              email: skipper.email,
+              phone: skipper.phone
+            }
+          };
+
+          submitting.value = true;
+          try {
+            const res = await fetch(API.register, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            if (res.status === 200) {
+              submitMessage.value = "Inscription soumise";
+              // optionally clear
+            } else {
+              const errText = await res.text().catch(() => null);
+              errorMessage.value = `Erreur serveur: ${res.status} ${errText || ''}`;
+            }
+          } catch (e) {
+            console.warn('onSubmit', e);
+            errorMessage.value = 'Erreur réseau lors de l\'envoi.';
+          } finally {
+            submitting.value = false;
+          }
+        }
+
+        onMounted(async () => {
+          await fetchRegatta();
+          await fetchSavedBoats();
+          await fetchCrewCandidates();
+        });
+
+        return {
+          logoUrl,
+          regatta,
+          formattedRegattaDate,
+
+          boat, saveBoat, savedBoats, loadingSavedBoats, selectedBoatName,
+          skipper, skipperName,
+          crew, newCrew, addCrewManual, removeCrew, selectedCrewLicence, assignSkipper,
+          crewCandidates, loadingCrewCandidates, addSelectedCrewCandidate,
+          licenceLookup, lookuplicence, searchAndAddLicenceCrewCandidate, searchedLicence, loadingLicence, searchLicenceError,
+          rules, valid,
+          acceptedRules,
+          submitMessage, errorMessage, submitting,
+          onSubmit
+        };
+      }
+    }).use(createVuetify()).mount('#app');
+  </script>
+</body>
+
+</html>
