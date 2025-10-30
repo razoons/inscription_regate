@@ -46,13 +46,15 @@
   <div id="app">
     <v-app>
       <v-main>
-        <v-container >
+        <v-container v-if="!submitMessage">
 
           <!-- Header -->
           <v-row class="align-center mb-6">
             <v-col class="align-center">
               <h1 class="mb-1">{{ regatta.name || 'Régate' }}</h1>
-              <div v-if="regatta.date"><h2>Date : {{ formattedRegattaDate }}</h2></div>
+              <div v-if="regatta.date">
+                <h2>Date : {{ formattedRegattaDate }}</h2>
+              </div>
               <div v-else>Chargement de la date...</div>
             </v-col>
           </v-row>
@@ -105,8 +107,10 @@
             <v-card class="pa-4 mb-4">
               <v-card-title>Equipage</v-card-title>
               <v-card-text>
-                <v-alert type="info" class="mb-4" variant="outlined">Tu peux piocher des équipiers pré-enregistrés ou le chercher à partir d'un numéro de licence. Tu peux également rentrer les informations manuellement en cas de licence temporaire. Pour choisir le skipper, clique sur l'étoile à côté</v-alert>
-                
+                <v-alert type="info" class="mb-4" variant="outlined">Tu peux piocher des équipiers pré-enregistrés ou le
+                  chercher à partir d'un numéro de licence. Tu peux également rentrer les informations manuellement en
+                  cas de licence temporaire. Pour choisir le skipper, clique sur l'étoile à côté</v-alert>
+
 
                 <v-row class="mb-3">
                   <v-col cols="10" md="6">
@@ -157,6 +161,9 @@
                       </v-col>
                       <v-col cols="2">
                         <v-btn v-if="!user.skipper" small text @click="assignSkipper(index)" icon="mdi-star"></v-btn>
+                        <v-chip v-else prepend-icon="mdi-star">
+                          Skipper
+                        </v-chip>
                       </v-col>
                       <v-col cols="2">
                         <v-btn small text @click="removeCrew(index)" icon="mdi-delete"></v-btn>
@@ -219,9 +226,6 @@
             <v-row>
               <v-col cols="12" class="d-flex justify-space-between align-center">
                 <div>
-                  <v-alert v-if="submitMessage" type="success" border="left" prominent>
-                    {{ submitMessage }}
-                  </v-alert>
                   <v-alert v-if="errorMessage" type="error" border="left" prominent>
                     {{ errorMessage }}
                   </v-alert>
@@ -235,6 +239,11 @@
 
           </v-form>
 
+        </v-container>
+        <v-container v-else>
+          <v-card prepend-icon="mdi-check-circle"
+            text="Votre inscription a été soumise. Pensez à régler le paiement. Lien disponible sur le site www.iscr.fr"
+            variant="elevated" color="light-green-darken-2"></v-card>
         </v-container>
       </v-main>
     </v-app>
@@ -257,12 +266,9 @@
           regatta: 'https://sheets.googleapis.com/v4/spreadsheets/1gYi0jgk_VNLhUyyx72VlQ1WPORnkJ2ssZod5vspz26g/values/Regate?key=AIzaSyCTXA6Nrbyd1Sil8V_1KxSwbijKIpTJogU',                 // GET -> { name, date }
           savedBoats: 'https://sheets.googleapis.com/v4/spreadsheets/1gYi0jgk_VNLhUyyx72VlQ1WPORnkJ2ssZod5vspz26g/values/Bateaux Prédéfinis?key=AIzaSyCTXA6Nrbyd1Sil8V_1KxSwbijKIpTJogU',          // GET -> [{ id, name, type, sailNumber, class, groupBrut, groupNet }]
           crewCandidates: 'https://sheets.googleapis.com/v4/spreadsheets/1gYi0jgk_VNLhUyyx72VlQ1WPORnkJ2ssZod5vspz26g/values/Equipiers Prédéfinis?key=AIzaSyCTXA6Nrbyd1Sil8V_1KxSwbijKIpTJogU',        // GET -> [{ id, firstname, lastname, licence }]
-          crewBylicence: (lic) => `/api/crew/licence/${lic}`, // GET -> { firstname, lastname, licence }
-          verifylicence: (lic) => `https://script.google.com/macros/s/AKfycbxmYn_YGOed31LrGD7QxysI8-N29np04EjKidumbJ0DMVUUsB8YUjfYKZTTCkefxuZN/exec?licence=${lic}`,  // GET -> { valid: true/false }
-          register: 'https://us-central1-proxy-appscript.cloudfunctions.net/proxyToAppsScript'                // POST -> 201 on success
+          register: 'https://us-central1-proxy-appscript.cloudfunctions.net/proxyToAppsScript',                // POST -> 201 on success
+          verifylicence: (lic) => `https://script.google.com/macros/s/AKfycbxmYn_YGOed31LrGD7QxysI8-N29np04EjKidumbJ0DMVUUsB8YUjfYKZTTCkefxuZN/exec?licence=${lic}`  // GET -> { valid: true/false }
         };
-
-        const logoUrl = 'https://raw.githubusercontent.com/TON/REPO/master/logo.png'; // <-- TODO: remplacer par ton chemin GitHub
 
         // state
         const regatta = reactive({ name: '', date: null });
@@ -281,7 +287,6 @@
         const loadingSavedBoats = ref(false);
         const selectedBoatName = ref('');
         const searchedLicence = ref('');
-        const selectedBoat = computed(() => savedBoats.value.find(o => o.name === selectedBoatName.value) || {});
         const loadingLicence = ref(false);
         const searchLicenceError = ref(false);
         const skipperName = computed(() => {
@@ -296,8 +301,6 @@
         }
         )
 
-
-        const licenceLookup = ref('');
 
         // form control
         const valid = ref(false);
@@ -341,7 +344,7 @@
             const res = await fetch(API.savedBoats);
             if (res.ok) {
               const arr = await res.json();
-              resp_boats = arr.values;
+              const resp_boats = arr.values;
               resp_boats.shift();
               savedBoats.value = resp_boats.map(b => ({
                 name: b[0],
@@ -370,6 +373,7 @@
           if (selectedCrewLicence.value) {
             const foundCrew = crewCandidates.value.find(c => c.licence == selectedCrewLicence.value);
             addCrew(foundCrew);
+            selectedCrewLicence.value = null;
           }
         }
 
@@ -411,7 +415,7 @@
             const res = await fetch(API.crewCandidates);
             if (res.ok) {
               const arr = await res.json();
-              resp_crew = arr.values;
+              const resp_crew = arr.values;
               resp_crew.shift();
               crewCandidates.value = resp_crew.map(b => ({
                 lastname: b[0],
@@ -426,57 +430,6 @@
             console.warn('fetchCrewCandidates', e);
             crewCandidates.value = [];
           } finally { loadingCrewCandidates.value = false; }
-        }
-
-        // lookup licence by number -> fetch name/prénom and verify
-        async function lookuplicence() {
-          const lic = licenceLookup.value && licenceLookup.value.trim();
-          if (!lic) { errorMessage.value = 'Entrez un numéro de licence.'; setTimeout(() => errorMessage.value = '', 4000); return; }
-          try {
-            const res = await fetch(API.crewBylicence(encodeURIComponent(lic)));
-            if (res.ok) {
-              const data = await res.json();
-              await verifylicenceAndAdd({ firstname: data.firstname, lastname: data.lastname, licence: data.licence || lic });
-              licenceLookup.value = '';
-            } else if (res.status === 404) {
-              errorMessage.value = 'Licence non trouvée.';
-              setTimeout(() => errorMessage.value = '', 4000);
-            } else {
-              errorMessage.value = 'Erreur lors de la recherche de la licence.';
-              setTimeout(() => errorMessage.value = '', 4000);
-            }
-          } catch (e) {
-            console.warn('lookuplicence', e);
-            errorMessage.value = 'Erreur réseau.';
-            setTimeout(() => errorMessage.value = '', 4000);
-          }
-        }
-
-        // verify licence then add to crew
-        async function licenceAndAdd(person) {
-          // person: { firstname, lastname, licence }
-          try {
-            const vres = await fetch(API.verifylicence(person.licence));
-            if (vres.ok) {
-              const vdata = await vres.json();
-              if (vdata.valid) {
-                // add to crew
-                crew.value.push({ id, firstname: person.firstname, lastname: person.lastname, licence: person.licence });
-                submitMessage.value = '';
-              } else {
-                errorMessage.value = 'Licence invalide.';
-                setTimeout(() => errorMessage.value = '', 4000);
-              }
-            } else {
-              // fallback: still add but mark unverified? For safety, block add
-              errorMessage.value = 'Impossible de vérifier la licence.';
-              setTimeout(() => errorMessage.value = '', 4000);
-            }
-          } catch (e) {
-            console.warn('verifylicenceAndAdd', e);
-            errorMessage.value = 'Erreur réseau lors de la vérification.';
-            setTimeout(() => errorMessage.value = '', 4000);
-          }
         }
 
         function addCrewManual() {
@@ -552,7 +505,6 @@
         });
 
         return {
-          logoUrl,
           regatta,
           formattedRegattaDate,
 
@@ -560,7 +512,7 @@
           skipper, skipperName,
           crew, newCrew, addCrewManual, removeCrew, selectedCrewLicence, assignSkipper,
           crewCandidates, loadingCrewCandidates, addSelectedCrewCandidate,
-          licenceLookup, lookuplicence, searchAndAddLicenceCrewCandidate, searchedLicence, loadingLicence, searchLicenceError,
+          searchAndAddLicenceCrewCandidate, searchedLicence, loadingLicence, searchLicenceError,
           rules, valid,
           acceptedRules,
           submitMessage, errorMessage, submitting,
