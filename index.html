@@ -266,8 +266,8 @@
           regatta: 'https://sheets.googleapis.com/v4/spreadsheets/1gYi0jgk_VNLhUyyx72VlQ1WPORnkJ2ssZod5vspz26g/values/Regate?key=AIzaSyCTXA6Nrbyd1Sil8V_1KxSwbijKIpTJogU',                 // GET -> { name, date }
           savedBoats: 'https://sheets.googleapis.com/v4/spreadsheets/1gYi0jgk_VNLhUyyx72VlQ1WPORnkJ2ssZod5vspz26g/values/Bateaux Prédéfinis?key=AIzaSyCTXA6Nrbyd1Sil8V_1KxSwbijKIpTJogU',          // GET -> [{ id, name, type, sailNumber, class, groupBrut, groupNet }]
           crewCandidates: 'https://sheets.googleapis.com/v4/spreadsheets/1gYi0jgk_VNLhUyyx72VlQ1WPORnkJ2ssZod5vspz26g/values/Equipiers Prédéfinis?key=AIzaSyCTXA6Nrbyd1Sil8V_1KxSwbijKIpTJogU',        // GET -> [{ id, firstname, lastname, licence }]
-          register: 'https://us-central1-proxy-appscript.cloudfunctions.net/proxyToAppsScript',                // POST -> 201 on success
-          verifylicence: (lic) => `https://script.google.com/macros/s/AKfycbxmYn_YGOed31LrGD7QxysI8-N29np04EjKidumbJ0DMVUUsB8YUjfYKZTTCkefxuZN/exec?licence=${lic}`  // GET -> { valid: true/false }
+          register: 'https://us-central1-proxy-appscript.cloudfunctions.net/proxyToAppsScript/inscription',                // POST -> 201 on success
+          verifylicence: (lic) => `https://us-central1-proxy-appscript.cloudfunctions.net/proxyToAppsScript/licence/${lic}`  // GET -> { valid: true/false }
         };
 
         // state
