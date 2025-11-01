@@ -21,7 +21,6 @@
       font-family: Roboto, sans-serif;
       margin: 0;
       padding: 0;
-      background: #f5f7fa;
     }
 
     #app {
@@ -46,205 +45,227 @@
   <div id="app">
     <v-app>
       <v-main>
-        <v-container v-if="!submitMessage">
+        <v-skeleton-loader v-if="loading" class="mx-auto border" type="image, article, actions"></v-skeleton-loader>
+        <div v-else>
+          <div v-if="regatta.active && isRegattaClosed">
+            <v-container v-if="!submitMessage">
 
-          <!-- Header -->
-          <v-row class="align-center mb-6">
-            <v-col class="align-center">
-              <h1 class="mb-1">{{ regatta.name || 'Régate' }}</h1>
-              <div v-if="regatta.date">
-                <h2>Date : {{ formattedRegattaDate }}</h2>
-              </div>
-              <div v-else>Chargement de la date...</div>
-            </v-col>
-          </v-row>
+              <!-- Header -->
+              <v-row class="align-center mb-6">
+                <v-col class="align-center">
+                  <h1 class="mb-1">{{ regatta.name || 'Régate' }}</h1>
+                  <div v-if="regatta.date">
+                    <h2>Date : {{ formattedRegattaDate }}</h2>
+                  </div>
+                  <div v-else>Chargement de la date...</div>
+                </v-col>
+              </v-row>
 
-          <v-form ref="form" v-model="valid" lazy-validation>
+              <v-form ref="form" v-model="valid" lazy-validation>
 
-            <!-- Section Bateau -->
-            <v-card class="pa-4 mb-4">
-              <v-card-title>Bateau</v-card-title>
-              <v-card-text>
-                <v-row class="mb-3">
-                  <v-col cols="12" md="6">
-                    <v-select v-model="selectedBoatName" :items="savedBoats" item-title="name" item-value="name"
-                      label="Sélectionner un bateau" />
-                  </v-col>
-                </v-row>
-
-                <v-row>
-                  <v-col cols="12" md="6">
-                    <v-text-field v-model="boat.name" label="Nom du Bateau" :rules="[rules.required]" required />
-                  </v-col>
-                  <v-col cols="12" md="6">
-                    <v-text-field v-model="boat.type" label="Type du Bateau" :rules="[rules.required]" required />
-                  </v-col>
-
-                  <v-col cols="12" md="4">
-                    <v-text-field v-model="boat.sailNumber" label="Numéro de voile" :rules="[rules.required]"
-                      required />
-                  </v-col>
-                  <v-col cols="12" md="4">
-                    <v-text-field v-model="boat.class" label="Classe du Bateau" :rules="[rules.required]" required />
-                  </v-col>
-                  <v-col cols="12" md="2">
-                    <v-text-field v-model="boat.groupBrut" label="Groupe Brut" :rules="[rules.required]" required />
-                  </v-col>
-                  <v-col cols="12" md="2">
-                    <v-text-field v-model="boat.groupNet" label="Groupe Net" :rules="[rules.required]" required />
-                  </v-col>
-                </v-row>
-
-                <v-row>
-                  <v-col cols="12">
-                    <v-checkbox v-model="saveBoat" label="Je souhaite enregistrer les informations de mon bateau" />
-                  </v-col>
-                </v-row>
-              </v-card-text>
-            </v-card>
-
-            <!-- Section Equipage -->
-            <v-card class="pa-4 mb-4">
-              <v-card-title>Equipage</v-card-title>
-              <v-card-text>
-                <v-alert type="info" class="mb-4" variant="outlined">Tu peux piocher des équipiers pré-enregistrés ou le
-                  chercher à partir d'un numéro de licence. Tu peux également rentrer les informations manuellement en
-                  cas de licence temporaire. Pour choisir le skipper, clique sur l'étoile à côté</v-alert>
-
-
-                <v-row class="mb-3">
-                  <v-col cols="10" md="6">
-                    <v-select :items="crewCandidates" item-title="display" item-value="licence"
-                      v-model="selectedCrewLicence" label="Choisir un équipier depuis la liste prédéfinie" clearable
-                      :loading="loadingCrewCandidates" />
-                  </v-col>
-                  <v-col cols="2" md="6">
-                    <v-btn @click="addSelectedCrewCandidate" icon="mdi-account-plus"></v-btn>
-                  </v-col>
-                </v-row>
-                <v-row>
-                  <v-col cols="10" md="6" class="d-flex align-center">
-                    <v-text-field label="Entrer numéro de licence" v-model="searchedLicence" :error="searchLicenceError"
-                      :error-messages="searchLicenceError ? 'Licence incorrecte' : ''"
-                      @input="searchLicenceError = false" />
-                  </v-col>
-                  <v-col cols="2" md="6">
-                    <v-btn @click="searchAndAddLicenceCrewCandidate" icon="mdi-account-plus"
-                      :loading="loadingLicence"></v-btn>
-                  </v-col>
-                </v-row>
-
-                <h4>Licence temporaire</h4>
-                <v-row class="mt-4">
-                  <v-col cols="12" md="3">
-                    <v-text-field v-model="newCrew.firstname" label="Prénom" />
-                  </v-col>
-                  <v-col cols="12" md="3">
-                    <v-text-field v-model="newCrew.lastname" label="Nom" />
-                  </v-col>
-                  <v-col cols="12" md="4">
-                    <v-text-field v-model="newCrew.licence" label="N° de licence temporaire" />
-                  </v-col>
-                  <v-col cols="12" md="2">
-                    <v-btn @click="addCrewManual" icon="mdi-account-plus"></v-btn>
-                  </v-col>
-                </v-row>
-                <v-divider :thickness="5"></v-divider>
-                <h2 class="ma-4">Liste d'équipage</h2>
-                <v-row>
-                  <v-col cols="12">
-                    <v-row v-for="(user,index) in crew" :key="user.licence">
-                      <v-col cols="8">
-                        <v-card color="indigo-darken-3" :variant="user.skipper?'flat':'tonal'">
-                          <v-card-title>{{user.lastname}} {{user.firstname}} ({{user.licence}})</v-card-title>
-                        </v-card>
-                      </v-col>
-                      <v-col cols="2">
-                        <v-btn v-if="!user.skipper" small text @click="assignSkipper(index)" icon="mdi-star"></v-btn>
-                        <v-chip v-else prepend-icon="mdi-star">
-                          Skipper
-                        </v-chip>
-                      </v-col>
-                      <v-col cols="2">
-                        <v-btn small text @click="removeCrew(index)" icon="mdi-delete"></v-btn>
+                <!-- Section Bateau -->
+                <v-card class="pa-4 mb-4">
+                  <v-card-title>Bateau</v-card-title>
+                  <v-card-text>
+                    <v-row class="mb-3">
+                      <v-col cols="12" md="6">
+                        <v-select v-model="selectedBoatName" :items="savedBoats" item-title="name" item-value="name"
+                          label="Sélectionner un bateau" />
                       </v-col>
                     </v-row>
-                  </v-col>
-                </v-row>
-              </v-card-text>
-            </v-card>
 
-            <!-- Section Skipper -->
-            <v-card class="pa-4 mb-4">
-              <v-card-title>Coordonnées</v-card-title>
-              <v-card-text>
+                    <v-row>
+                      <v-col cols="12" md="6">
+                        <v-text-field v-model="boat.name" label="Nom du Bateau" :rules="[rules.required]" required />
+                      </v-col>
+                      <v-col cols="12" md="6">
+                        <v-text-field v-model="boat.type" label="Type du Bateau" :rules="[rules.required]" required />
+                      </v-col>
+
+                      <v-col cols="12" md="4">
+                        <v-text-field v-model="boat.sailNumber" label="Numéro de voile" :rules="[rules.required]"
+                          required />
+                      </v-col>
+                      <v-col cols="12" md="4">
+                        <v-text-field v-model="boat.class" label="Classe du Bateau" :rules="[rules.required]"
+                          required />
+                      </v-col>
+                      <v-col cols="12" md="2">
+                        <v-text-field v-model="boat.groupBrut" label="Groupe Brut" :rules="[rules.required]" required />
+                      </v-col>
+                      <v-col cols="12" md="2">
+                        <v-text-field v-model="boat.groupNet" label="Groupe Net" :rules="[rules.required]" required />
+                      </v-col>
+                    </v-row>
+
+                    <v-row>
+                      <v-col cols="12">
+                        <v-checkbox v-model="saveBoat" label="Je souhaite enregistrer les informations de mon bateau" />
+                      </v-col>
+                    </v-row>
+                  </v-card-text>
+                </v-card>
+
+                <!-- Section Equipage -->
+                <v-card class="pa-4 mb-4">
+                  <v-card-title>Equipage</v-card-title>
+                  <v-card-text>
+                    <v-alert type="info" class="mb-4" variant="outlined">Tu peux piocher des équipiers pré-enregistrés
+                      ou
+                      le
+                      chercher à partir d'un numéro de licence. Tu peux également rentrer les informations manuellement
+                      en
+                      cas de licence temporaire. Pour choisir le skipper, clique sur l'étoile à côté</v-alert>
+
+
+                    <v-row class="mb-3">
+                      <v-col cols="10" md="6">
+                        <v-select :items="crewCandidates" item-title="display" item-value="licence"
+                          v-model="selectedCrewLicence" label="Choisir un équipier depuis la liste prédéfinie" clearable
+                          :loading="loadingCrewCandidates" />
+                      </v-col>
+                      <v-col cols="2" md="6">
+                        <v-btn @click="addSelectedCrewCandidate" icon="mdi-account-plus"></v-btn>
+                      </v-col>
+                    </v-row>
+                    <v-row>
+                      <v-col cols="10" md="6" class="d-flex align-center">
+                        <v-text-field label="Entrer numéro de licence" v-model="searchedLicence"
+                          :error="searchLicenceError" :error-messages="searchLicenceError ? 'Licence incorrecte' : ''"
+                          @input="searchLicenceError = false" />
+                      </v-col>
+                      <v-col cols="2" md="6">
+                        <v-btn @click="searchAndAddLicenceCrewCandidate" icon="mdi-account-plus"
+                          :loading="loadingLicence"></v-btn>
+                      </v-col>
+                    </v-row>
+
+                    <h4>Licence temporaire</h4>
+                    <v-row class="mt-4">
+                      <v-col cols="12" md="3">
+                        <v-text-field v-model="newCrew.firstname" label="Prénom" />
+                      </v-col>
+                      <v-col cols="12" md="3">
+                        <v-text-field v-model="newCrew.lastname" label="Nom" />
+                      </v-col>
+                      <v-col cols="12" md="4">
+                        <v-text-field v-model="newCrew.licence" label="N° de licence temporaire" />
+                      </v-col>
+                      <v-col cols="12" md="2">
+                        <v-btn @click="addCrewManual" icon="mdi-account-plus"></v-btn>
+                      </v-col>
+                    </v-row>
+                    <v-divider :thickness="5"></v-divider>
+                    <h2 class="ma-4">Liste d'équipage</h2>
+                    <v-row>
+                      <v-col cols="12">
+                        <v-row v-for="(user,index) in crew" :key="user.licence">
+                          <v-col cols="8">
+                            <v-card color="indigo-darken-3" :variant="user.skipper?'flat':'tonal'">
+                              <v-card-title>{{user.lastname}} {{user.firstname}} ({{user.licence}})</v-card-title>
+                            </v-card>
+                          </v-col>
+                          <v-col cols="2">
+                            <v-btn v-if="!user.skipper" small text @click="assignSkipper(index)"
+                              icon="mdi-star"></v-btn>
+                            <v-chip v-else prepend-icon="mdi-star">
+                              Skipper
+                            </v-chip>
+                          </v-col>
+                          <v-col cols="2">
+                            <v-btn small text @click="removeCrew(index)" icon="mdi-delete"></v-btn>
+                          </v-col>
+                        </v-row>
+                      </v-col>
+                    </v-row>
+                  </v-card-text>
+                </v-card>
+
+                <!-- Section Skipper -->
+                <v-card class="pa-4 mb-4">
+                  <v-card-title>Coordonnées</v-card-title>
+                  <v-card-text>
+                    <v-row>
+                      <v-col cols="12" md="6">
+                        <v-text-field v-model="skipper.address" label="Adresse postale" :rules="[rules.required]"
+                          required />
+                      </v-col>
+                      <v-col cols="12" md="6">
+                        <v-text-field v-model="skipper.email" label="Email" :rules="[rules.required, rules.email]"
+                          required />
+                      </v-col>
+                      <v-col cols="12" md="6">
+                        <v-text-field v-model="skipper.phone" label="Numéro de téléphone" :rules="[rules.required]"
+                          required />
+                      </v-col>
+                    </v-row>
+                  </v-card-text>
+                </v-card>
+
+
+
+                <!-- Conditions -->
+                <v-card class="pa-4 mb-4">
+                  <v-card-title>Conditions d'inscription (obligatoire)</v-card-title>
+                  <v-card-text>
+                    <div class="terms mb-4">
+                      Je soussigné {{ skipperName || '...' }}, skipper, certifie exactes les
+                      informations données ci-dessus. En m’inscrivant à cette épreuve, je reconnais qu’il m’appartient
+                      sous
+                      ma seule responsabilité, de décider de prendre le départ ou continuer à courir, notamment en
+                      m’assurant que les conditions météorologiques du moment et les prévisions pour la durée de
+                      l’épreuve
+                      sont compatibles, en matière de sécurité des personnes, à la taille, l’état du voilier et à la
+                      compétence de l’équipage.
+                      J’accepte de me soumettre :
+                      • aux Règles de Courses à la Voile de l’ISAF 2017-2019 et leurs annexes,
+                      • aux prescriptions de la FFV
+                      • aux règlements de Course Croisière au Handicap National de l’année en cours,
+                      • aux Instructions de cette Course et ses Annexes, dont j’ai pris connaissance.
+                      Je renonce à tout recours autre que celui prévu par ces règles.
+                    </div>
+
+                    <v-checkbox v-model="acceptedRules" :rules="[rules.mustBeTrue]"
+                      label="J'accepte les conditions d'inscriptions énoncées ci-dessus. *" required />
+
+                  </v-card-text>
+                </v-card>
+
+                <!-- Actions -->
                 <v-row>
-                  <v-col cols="12" md="6">
-                    <v-text-field v-model="skipper.address" label="Adresse postale" :rules="[rules.required]"
-                      required />
-                  </v-col>
-                  <v-col cols="12" md="6">
-                    <v-text-field v-model="skipper.email" label="Email" :rules="[rules.required, rules.email]"
-                      required />
-                  </v-col>
-                  <v-col cols="12" md="6">
-                    <v-text-field v-model="skipper.phone" label="Numéro de téléphone" :rules="[rules.required]"
-                      required />
+                  <v-col cols="12" class="d-flex justify-space-between align-center">
+                    <div>
+                      <v-alert v-if="errorMessage" type="error" border="left" prominent>
+                        {{ errorMessage }}
+                      </v-alert>
+                    </div>
+
+                    <div>
+                      <v-btn color="primary" :loading="submitting" @click="onSubmit">Valider</v-btn>
+                    </div>
                   </v-col>
                 </v-row>
-              </v-card-text>
-            </v-card>
 
+              </v-form>
 
-
-            <!-- Conditions -->
-            <v-card class="pa-4 mb-4">
-              <v-card-title>Conditions d'inscription (obligatoire)</v-card-title>
-              <v-card-text>
-                <div class="terms mb-4">
-                  Je soussigné {{ skipperName || '...' }}, skipper, certifie exactes les
-                  informations données ci-dessus. En m’inscrivant à cette épreuve, je reconnais qu’il m’appartient sous
-                  ma seule responsabilité, de décider de prendre le départ ou continuer à courir, notamment en
-                  m’assurant que les conditions météorologiques du moment et les prévisions pour la durée de l’épreuve
-                  sont compatibles, en matière de sécurité des personnes, à la taille, l’état du voilier et à la
-                  compétence de l’équipage.
-                  J’accepte de me soumettre :
-                  • aux Règles de Courses à la Voile de l’ISAF 2017-2019 et leurs annexes,
-                  • aux prescriptions de la FFV
-                  • aux règlements de Course Croisière au Handicap National de l’année en cours,
-                  • aux Instructions de cette Course et ses Annexes, dont j’ai pris connaissance.
-                  Je renonce à tout recours autre que celui prévu par ces règles.
-                </div>
-
-                <v-checkbox v-model="acceptedRules" :rules="[rules.mustBeTrue]"
-                  label="J'accepte les conditions d'inscriptions énoncées ci-dessus. *" required />
-
-              </v-card-text>
-            </v-card>
-
-            <!-- Actions -->
-            <v-row>
-              <v-col cols="12" class="d-flex justify-space-between align-center">
-                <div>
-                  <v-alert v-if="errorMessage" type="error" border="left" prominent>
-                    {{ errorMessage }}
-                  </v-alert>
-                </div>
-
-                <div>
-                  <v-btn color="primary" :loading="submitting" @click="onSubmit">Valider</v-btn>
-                </div>
-              </v-col>
-            </v-row>
-
-          </v-form>
-
-        </v-container>
-        <v-container v-else>
-          <v-card prepend-icon="mdi-check-circle"
-            text="Votre inscription a été soumise. Pensez à régler le paiement. Lien disponible sur le site www.iscr.fr"
-            variant="elevated" color="light-green-darken-2"></v-card>
-        </v-container>
+            </v-container>
+            <v-container v-else>
+              <v-card prepend-icon="mdi-check-circle"
+                text="Votre inscription a été soumise. Pensez à régler le paiement. Lien disponible sur le site www.iscr.fr"
+                variant="elevated" color="light-green-darken-2"></v-card>
+            </v-container>
+          </div>
+          <div v-else>
+            <v-container>
+              <v-card v-if="!regatta.active" prepend-icon="mdi-close-circle"
+                text="Il n'y a pas d'inscriptions d'ouvertes en ce moment." variant="elevated"
+                color="red-darken-2"></v-card>
+              <v-card v-else prepend-icon="mdi-close-circle"
+                :text="`Les inscriptions pour ${regatta.name} sont désormais fermées`"
+                variant="elevated" color="red-darken-2"></v-card>
+            </v-container>
+          </div>
+        </div>
       </v-main>
     </v-app>
   </div>
@@ -271,7 +292,8 @@
         };
 
         // state
-        const regatta = reactive({ name: '', date: null });
+        const loading = ref(true);
+        const regatta = reactive({ name: '', date: null, active: false, endDate: null });
         const boat = reactive({ name: '', type: '', sailNumber: '', class: '', groupBrut: '', groupNet: '' });
         const saveBoat = ref(false);
 
@@ -279,6 +301,12 @@
 
         const crew = ref([]); // lista d'objets {firstname, lastname, licence }
         const newCrew = reactive({ firstname: '', lastname: '', licence: '' });
+
+        const isRegattaClosed = computed(() => {
+          const n = new Date();
+          const e = new Date(regatta.endDate);
+          return n >= e;
+        })
 
         const crewCandidates = ref([]);
         const selectedCrewLicence = ref('');
@@ -330,6 +358,9 @@
             const data = await res.json();
             regatta.name = data.values[1][1] || 'Régate';
             regatta.date = data.values[2][1] || null;
+            regatta.active = data.values[3][1] === "Ouvertes";
+            regatta.endDate = data.values[5][1] || null;
+            loading.value = false;
           } catch (e) {
             console.warn('fetchRegatta', e);
             regatta.name = 'Régate (info non disponible)';
@@ -505,8 +536,8 @@
         });
 
         return {
-          regatta,
-          formattedRegattaDate,
+          regatta, loading,
+          formattedRegattaDate, isRegattaClosed,
 
           boat, saveBoat, savedBoats, loadingSavedBoats, selectedBoatName,
           skipper, skipperName,
