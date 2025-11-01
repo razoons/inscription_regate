@@ -261,8 +261,8 @@
                 text="Il n'y a pas d'inscriptions d'ouvertes en ce moment." variant="elevated"
                 color="red-darken-2"></v-card>
               <v-card v-else prepend-icon="mdi-close-circle"
-                :text="`Les inscriptions pour ${regatta.name} sont désormais fermées`"
-                variant="elevated" color="red-darken-2"></v-card>
+                :text="`Les inscriptions pour ${regatta.name} sont désormais fermées`" variant="elevated"
+                color="red-darken-2"></v-card>
             </v-container>
           </div>
         </div>
@@ -360,7 +360,6 @@
             regatta.date = data.values[2][1] || null;
             regatta.active = data.values[3][1] === "Ouvertes";
             regatta.endDate = data.values[5][1] || null;
-            loading.value = false;
           } catch (e) {
             console.warn('fetchRegatta', e);
             regatta.name = 'Régate (info non disponible)';
@@ -521,6 +520,7 @@
               const errText = await res.text().catch(() => null);
               errorMessage.value = `Erreur serveur: ${res.status} ${errText || ''}`;
             }
+            window.scrollTo({ top: 0, behavior: 'smooth' })
           } catch (e) {
             console.warn('onSubmit', e);
             errorMessage.value = 'Erreur réseau lors de l\'envoi.';
@@ -530,9 +530,13 @@
         }
 
         onMounted(async () => {
-          await fetchRegatta();
-          await fetchSavedBoats();
-          await fetchCrewCandidates();
+          loading.value = true;
+          await Promise.all([
+            fetchRegatta(),
+            fetchSavedBoats(),
+            fetchCrewCandidates()
+          ])
+          loading.value = false;
         });
 
         return {
