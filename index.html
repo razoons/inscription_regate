@@ -489,7 +489,7 @@
           if (!skipper.address || !skipper.email || !skipper.phone) { errorMessage.value = 'Veuillez remplir toutes les infos du skipper.'; return; }
 
           // at least one crew (including skipper) should be present
-          if (crew.value.length === 0) { errorMessage.value = 'Veuillez ajouter au moins un équipier.'; return; }
+          if (crew.value.length < 2) { errorMessage.value = 'Votre équipage doit comporter au moins 2 membres.'; return; }
 
 
           if (!acceptedRules.value) { errorMessage.value = 'Vous devez accepter les conditions.'; return; }
